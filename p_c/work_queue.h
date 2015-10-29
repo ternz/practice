@@ -4,6 +4,10 @@
 #include <pthread.h>
 #include <queue>
 
+#define STATE_NONE 0
+#define STATE_EMPTY 1
+#define STATE_FULL 2
+
 class WorkQueue {
 public:
 	WorkQueue(int size);
@@ -20,6 +24,7 @@ private:
 	int max_size_;
 	unsigned long long in_counter;
 	unsigned long long out_counter;
+	int state_;
 };
 
 #endif
