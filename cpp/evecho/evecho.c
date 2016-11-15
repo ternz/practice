@@ -6,6 +6,12 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <signal.h>
+
+void on_accept(evutil_socket_t fd, short what, void* arg);
+void on_read(evutil_socket_t fd, short what, void* arg);
+void on_write(evutil_socket_t fd, short what, void* arg);
+void on_signal(evutil_socket_t fd, short what, void* arg);
 
 int g_run = 1;
 
@@ -75,12 +81,12 @@ void on_accept(evutil_socket_t fd, short what, void* arg) {
 			setnonblock(connfd);
 			
 			struct event_pair *pair = malloc(sizeof(struct event_pair));
-			pair->rev = event_new(evbase, fd, EV_READ | EV_PERSIST, on_read, pair);
+			pair->rev = event_new(evbase, connfd, EV_READ | EV_PERSIST, on_read, pair);
 			if(pair->rev == NULL) {
 				fprintf(stderr, "create read event failed\n");
 				exit(1);
 			}
-			pair->wev = event_new(evbase, fd, EV_WRITE, on_write, pair);
+			pair->wev = event_new(evbase, connfd, EV_WRITE, on_write, pair);
 			if(pair->wev == NULL) {
 				fprintf(stderr, "create write event failed\n");
 				exit(1);
@@ -99,8 +105,8 @@ void active_write(struct event_pair *pair, char *buffer, int size, int length, i
 		fprintf(stderr, "allocat iobuffer memory error\n");
 		exit(1);
 	}
-	wbuf->basd = buffer;
-	wbuf->curr = buf+offset;
+	wbuf->base = buffer;
+	wbuf->curr = buffer+offset;
 	wbuf->size = size;
 	wbuf->length = length;
 	pair->write_buf = wbuf;
@@ -192,6 +198,7 @@ void on_write(evutil_socket_t fd, short what, void* arg) {
 		BUF_FORWARD(pair->write_buf, wn);
 		event_add(pair->wev, NULL);
 	} else {
+		del_iobuffer(pair->write_buf);
 		event_add(pair->rev, NULL);
 	}
 }
@@ -202,7 +209,7 @@ void on_signal(evutil_socket_t fd, short what, void* arg) {
 		case SIGTERM: 
 			event_base_loopbreak(base);
 			break;
-		default:
+		//default:
 	}
 }
 
@@ -236,13 +243,13 @@ int main(int argc, char **argv) {
 	}
 	
 	struct event_base *evbase = event_base_new();
-	struct event *evlisten = event_new(evbase, fd, EV_READ | EV_PERSIST, on_accept, evbase);
+	struct event *evlisten = event_new(evbase, listen_fd, EV_READ | EV_PERSIST, on_accept, evbase);
 	if(event_add(evlisten, NULL) < 0) {
 		fprintf(stderr, "add listen event error\n");
 		exit(1);
 	}
 	
-	struct event *evsighup = event_new(evbase, SIGHUG, EV_SIGNAL | EV_PERSIST, on_signal, evbase);
+	struct event *evsighup = event_new(evbase, SIGHUP, EV_SIGNAL | EV_PERSIST, on_signal, evbase);
 	struct event *evsigterm = event_new(evbase, SIGTERM, EV_SIGNAL | EV_PERSIST, on_signal, evbase);
 	if(event_add(evsighup, NULL) < 0 || event_add(evsigterm, NULL) < 0) {
 		fprintf(stderr, "add signal event error\n");
