@@ -123,11 +123,13 @@ void active_write(struct event_pair *pair, char *buffer, int size, int length, i
 	}
 }
 
+#define buf_size 1024
+
 //arg is a event_pair
 void on_read(evutil_socket_t fd, short what, void* arg) {
 	struct event_pair *pair = arg;
 	if(what & EV_READ) {
-		size_t buf_size = 128;
+		//size_t buf_size = 128;
 		char *buf = malloc(buf_size);
 		int rn,wn;
 		while(1) {
@@ -251,7 +253,10 @@ int main(int argc, char **argv) {
 	
 	struct event *evsighup = event_new(evbase, SIGHUP, EV_SIGNAL | EV_PERSIST, on_signal, evbase);
 	struct event *evsigterm = event_new(evbase, SIGTERM, EV_SIGNAL | EV_PERSIST, on_signal, evbase);
-	if(event_add(evsighup, NULL) < 0 || event_add(evsigterm, NULL) < 0) {
+	struct event *evsigint = event_new(evbase, SIGINT, EV_SIGNAL | EV_PERSIST, on_signal, evbase);
+	struct event *evsigpipe = event_new(evbase, SIGPIPE, EV_SIGNAL | EV_PERSIST, on_signal, evbase);
+	if(event_add(evsighup, NULL) < 0 || event_add(evsigterm, NULL) < 0 
+		|| event_add(evsigint, NULL) < 0 || event_add(evsigpipe, NULL) < 0) {
 		fprintf(stderr, "add signal event error\n");
 		exit(1);
 	}
