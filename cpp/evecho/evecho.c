@@ -209,6 +209,7 @@ void on_signal(evutil_socket_t fd, short what, void* arg) {
 	struct event_base *base = arg;
 	switch(fd) {
 		case SIGTERM: 
+		case SIGINT:
 			event_base_loopbreak(base);
 			break;
 		//default:
